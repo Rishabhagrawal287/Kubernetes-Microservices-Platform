@@ -1,0 +1,10 @@
+user-service deployed to namespace {{ .Release.Namespace }}.
+
+Check pod status:
+  kubectl get pods -n {{ .Release.Namespace }} -l app=user-service
+
+Port-forward to test locally (in a separate terminal):
+  kubectl port-forward -n {{ .Release.Namespace }} svc/user-service 3001:{{ .Values.service.port }}
+
+Then, in your original terminal:
+  curl http://localhost:3001/health

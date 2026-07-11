@@ -1,0 +1,15 @@
+# Staging: closer to prod shape, but smaller ceiling. Illustrative — you won't
+# actually deploy this against a real staging cluster in this project, it's
+# here to show the pattern enterprises use across environments.
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

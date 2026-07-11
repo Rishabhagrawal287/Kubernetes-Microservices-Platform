@@ -1,0 +1,78 @@
+# Values for prometheus-community/kube-prometheus-stack, tuned for an 8GB
+# local Kind cluster — this is a learning setup, not a production monitoring
+# stack, and the choices below reflect that.
+
+prometheus:
+  prometheusSpec:
+    retention: 6h
+    # Broadest match: any ServiceMonitor/PrometheusRule in any namespace gets
+    # picked up. By default this chart only picks up ones carrying a
+    # "release: <helm-release-name>" label — fine for a big shared cluster,
+    # just extra friction to remember here. Trading a bit of "production
+    # correctness" for "one less thing to get wrong" on a solo project.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 512Mi
+
+grafana:
+  adminPassword: admin # dev-only — this never leaves your local Kind cluster
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  # This sidecar watches for ConfigMaps labeled grafana_dashboard: "1" and
+  # auto-imports them — see k8s/observability/grafana-dashboards/.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+
+# Kind's control-plane components (etcd, scheduler, controller-manager,
+# kube-proxy) don't expose metrics the way kube-prometheus-stack expects on a
+# standard kubeadm cluster — their ports bind to localhost inside the node
+# container. Rather than reconfiguring Kind's cluster to expose them (real,
+# but not worth it for this project), we just disable these specific scrape
+# jobs. Without this, Prometheus's UI opens to a wall of permanently "Down"
+# targets for infrastructure that isn't the point of this exercise.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false

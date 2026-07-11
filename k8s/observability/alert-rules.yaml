@@ -1,0 +1,35 @@
+# Basic alert rules for the three services. Deliberately small — two alerts
+# that actually mean something (a service is unreachable, or a meaningful
+# share of requests are failing) rather than a long list nobody reads.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: microservices-platform-alerts
+  namespace: microservices
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: microservices-platform
+      rules:
+        - alert: ServiceDown
+          expr: up{job=~"user-service|order-service|product-service"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.job }} is down"
+            description: "{{ $labels.job }} has been unreachable by Prometheus for more than 2 minutes."
+
+        - alert: HighHttpErrorRate
+          expr: |
+            sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (job)
+            /
+            sum(rate(http_requests_total[5m])) by (job)
+            > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High HTTP 5xx error rate on {{ $labels.job }}"
+            description: "More than 5% of requests to {{ $labels.job }} have failed with a 5xx status over the last 5 minutes."
