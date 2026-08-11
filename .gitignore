@@ -1,0 +1,26 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Go
+services/product-service/product-service
+
+# Env
+.env
+
+# Docker / logs
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Kubernetes / Helm
+*.tgz

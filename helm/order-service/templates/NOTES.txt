@@ -1,0 +1,10 @@
+order-service deployed to namespace {{ .Release.Namespace }}.
+
+Check pod status:
+  kubectl get pods -n {{ .Release.Namespace }} -l app=order-service
+
+Port-forward to test locally (in a separate terminal):
+  kubectl port-forward -n {{ .Release.Namespace }} svc/order-service 3002:{{ .Values.service.port }}
+
+Then, in your original terminal:
+  curl http://localhost:3002/health

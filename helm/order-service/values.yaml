@@ -1,0 +1,33 @@
+replicaCount: 2
+
+image:
+  repository: order-service
+  tag: local
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8000
+
+serviceMonitor:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+envFromSecret: platform-secrets

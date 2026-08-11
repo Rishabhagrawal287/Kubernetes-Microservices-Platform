@@ -1,0 +1,17 @@
+# Dev: fixed replica count, no autoscaling noise while you're iterating,
+# smaller resource footprint since this is what actually runs on your 8GB Kind cluster.
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+podDisruptionBudget:
+  enabled: false

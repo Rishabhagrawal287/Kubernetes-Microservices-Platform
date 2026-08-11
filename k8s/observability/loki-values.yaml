@@ -1,0 +1,80 @@
+# Loki in monolithic (single-binary) mode — the lightest of the chart's
+# deployment modes, appropriate for a local learning setup rather than a
+# real production log volume. Filesystem storage avoids needing S3/GCS or
+# running MinIO just to have somewhere to put log chunks.
+deploymentMode: Monolithic
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  limits_config:
+    # Short retention on purpose — this is a local dev environment, not
+    # somewhere you need weeks of log history.
+    retention_period: 24h
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistence:
+    enabled: true
+    size: 2Gi
+
+# Explicitly zero these out so the chart doesn't try to run both the
+# monolithic shape and the simple-scalable-mode components at once — a
+# known validation failure if left at their defaults alongside deploymentMode: Monolithic.
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# The gateway is Loki's nginx entrypoint. Keeping it on gives Grafana and
+# Alloy one stable, well-documented address (loki-gateway) rather than
+# needing to know the internal single-binary service name directly.
+gateway:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Not needed for a single-binary local setup.
+minio:
+  enabled: false
+test:
+  enabled: false
+lokiCanary:
+  enabled: false
+
+# Memcached-based caching is ON by default for both of these — each one is
+# its own StatefulSet with its own memory request. On a small local cluster
+# that's genuinely expensive for what it buys (query speed at a log volume
+# this project will never generate), and chunksCache specifically is the one
+# that tends to get stuck Pending when resources are tight. Disabling both
+# falls back to Loki's built-in in-memory cache, which is plenty here.
+resultsCache:
+  enabled: false
+chunksCache:
+  enabled: false

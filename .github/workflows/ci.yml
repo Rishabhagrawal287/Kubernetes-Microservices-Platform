@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-test-scan-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ---------- Build ----------
+      - name: Build service images
+        run: |
+          docker build -t user-service:local ./services/user-service
+          docker build -t order-service:local ./services/order-service
+          docker build -t product-service:local ./services/product-service
+
+      # ---------- Security scan (Trivy) ----------
+      # Report-only for now (exit-code 0) so the pipeline doesn't hard-fail on
+      # every base-image CVE while the project is still this young. Flip to
+      # exit-code 1 on each step below once you want CI to actually block on
+      # CRITICAL/HIGH findings.
+      - name: Scan user-service image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: user-service:local
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Scan order-service image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: order-service:local
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Scan product-service image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: product-service:local
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      # ---------- Deploy into a throwaway Kind cluster and prove it actually works ----------
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: ci-cluster
+
+      - name: Load images into Kind
+        run: |
+          kind load docker-image user-service:local --name ci-cluster
+          kind load docker-image order-service:local --name ci-cluster
+          kind load docker-image product-service:local --name ci-cluster
+
+      - name: Deploy shared infrastructure
+        run: |
+          kubectl apply -f k8s/infra/namespace.yaml
+          kubectl apply -f k8s/infra/secrets.yaml
+          kubectl apply -f k8s/infra/mongo.yaml
+          kubectl apply -f k8s/infra/postgres.yaml
+          kubectl apply -f k8s/infra/redis.yaml
+          kubectl apply -f k8s/infra/rabbitmq.yaml
+
+      - name: Wait for infrastructure to be ready
+        run: |
+          kubectl wait --for=condition=ready pod -l app=mongo -n microservices --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=postgres -n microservices --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=redis -n microservices --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=rabbitmq -n microservices --timeout=180s
+
+      - name: Install services via Helm (dev values)
+        run: |
+          helm install user-service ./helm/user-service -n microservices -f ./helm/user-service/values-dev.yaml
+          helm install order-service ./helm/order-service -n microservices -f ./helm/order-service/values-dev.yaml
+          helm install product-service ./helm/product-service -n microservices -f ./helm/product-service/values-dev.yaml
+
+      - name: Wait for services to be ready
+        run: |
+          kubectl wait --for=condition=available deployment/user-service -n microservices --timeout=120s
+          kubectl wait --for=condition=available deployment/order-service -n microservices --timeout=120s
+          kubectl wait --for=condition=available deployment/product-service -n microservices --timeout=120s
+
+      - name: Run integration test (JWT auth -> order -> RabbitMQ -> stock decrement)
+        run: |
+          chmod +x ./scripts/integration-test.sh
+          ./scripts/integration-test.sh
+
+      # ---------- Push to GHCR (only from main, never from PRs) ----------
+      - name: Compute lowercase image owner
+        # Docker image names must be all-lowercase; GitHub usernames aren't
+        # guaranteed to be, so this can't just use github.repository_owner directly.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push images to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          for svc in user-service order-service product-service; do
+            IMAGE="${REGISTRY}/${OWNER_LC}/microservices-platform-${svc}"
+            docker tag ${svc}:local "${IMAGE}:latest"
+            docker tag ${svc}:local "${IMAGE}:${{ github.sha }}"
+            docker push "${IMAGE}:latest"
+            docker push "${IMAGE}:${{ github.sha }}"
+          done

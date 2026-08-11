@@ -1,0 +1,14 @@
+product-service deployed to namespace {{ .Release.Namespace }}.
+
+Check pod status:
+  kubectl get pods -n {{ .Release.Namespace }} -l app=product-service
+
+Port-forward to test locally (in a separate terminal):
+  kubectl port-forward -n {{ .Release.Namespace }} svc/product-service 3003:{{ .Values.service.port }}
+
+Then, in your original terminal:
+  curl http://localhost:3003/health
+
+Note: every replica runs its own RabbitMQ consumer bound to the same queue,
+so with 2+ replicas RabbitMQ load-balances order.created events across them
+automatically (the "competing consumers" pattern) — nothing extra to configure.

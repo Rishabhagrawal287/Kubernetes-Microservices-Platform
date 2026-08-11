@@ -1,0 +1,156 @@
+services:
+  # ---------- Datastores ----------
+  mongo:
+    image: mongo:7
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-example}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-orders}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orders}
+      POSTGRES_DB: ${POSTGRES_DB:-orders_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orders}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------- Application services ----------
+  user-service:
+    build:
+      context: ./services/user-service
+    container_name: user-service
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      PORT: 3000
+      MONGO_URI: mongodb://${MONGO_USER:-root}:${MONGO_PASSWORD:-example}@mongo:27017/users_db?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-prod}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.user-service.rule=PathPrefix(`/api/users`)"
+      - "traefik.http.services.user-service.loadbalancer.server.port=3000"
+
+  order-service:
+    build:
+      context: ./services/order-service
+    container_name: order-service
+    restart: unless-stopped
+    ports:
+      - "3002:8000"
+    environment:
+      PORT: 8000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-orders}:${POSTGRES_PASSWORD:-orders}@postgres:5432/${POSTGRES_DB:-orders_db}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.order-service.rule=PathPrefix(`/api/orders`)"
+      - "traefik.http.services.order-service.loadbalancer.server.port=8000"
+
+  product-service:
+    build:
+      context: ./services/product-service
+    container_name: product-service
+    restart: unless-stopped
+    ports:
+      - "3003:8080"
+    environment:
+      PORT: 8080
+      REDIS_ADDR: redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.product-service.rule=PathPrefix(`/api/products`)"
+      - "traefik.http.services.product-service.loadbalancer.server.port=8080"
+
+  # ---------- Gateway ----------
+  traefik:
+    image: traefik:v3.7
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8081:8080"   # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - user-service
+      - order-service
+      - product-service
+
+volumes:
+  mongo_data:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:

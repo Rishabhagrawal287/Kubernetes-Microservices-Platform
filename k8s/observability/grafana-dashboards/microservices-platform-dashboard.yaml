@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: microservices-platform-dashboard
+  namespace: microservices
+  labels:
+    # This label is what the Grafana sidecar (configured in
+    # kube-prometheus-stack-values.yaml) watches for to auto-import dashboards —
+    # no manual "import JSON" step in the Grafana UI needed.
+    grafana_dashboard: "1"
+data:
+  microservices-platform.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 100,
+          "panels": [],
+          "title": "Golden Signals",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+          "id": 1,
+          "title": "Request Rate by Service",
+          "type": "timeseries",
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${datasource}" },
+              "expr": "sum(rate(http_requests_total[5m])) by (job)",
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+          "id": 2,
+          "title": "Error Rate (5xx) by Service",
+          "type": "timeseries",
+          "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${datasource}" },
+              "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) by (job) / sum(rate(http_requests_total[5m])) by (job)",
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+          "id": 3,
+          "title": "P95 Latency by Service",
+          "type": "timeseries",
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${datasource}" },
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+          "id": 101,
+          "panels": [],
+          "title": "Business Metrics",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 10 },
+          "id": 4,
+          "title": "User Signups / min",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${datasource}" },
+              "expr": "sum(rate(user_registrations_total[5m])) * 60",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 10 },
+          "id": 5,
+          "title": "Orders Created / min",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${datasource}" },
+              "expr": "sum(rate(orders_created_total[5m])) * 60",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 10 },
+          "id": 6,
+          "title": "Inventory Decrements / min",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${datasource}" },
+              "expr": "sum(rate(inventory_decrements_total[5m])) * 60",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+          "id": 7,
+          "title": "Current Stock Level by Product",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "${datasource}" },
+              "expr": "product_stock_level",
+              "legendFormat": "{{product_id}}",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "tags": ["microservices-platform"],
+      "templating": {
+        "list": [
+          {
+            "current": {},
+            "name": "datasource",
+            "query": "prometheus",
+            "type": "datasource"
+          }
+        ]
+      },
+      "time": { "from": "now-30m", "to": "now" },
+      "timezone": "",
+      "title": "Microservices Platform",
+      "uid": "microservices-platform",
+      "version": 1
+    }

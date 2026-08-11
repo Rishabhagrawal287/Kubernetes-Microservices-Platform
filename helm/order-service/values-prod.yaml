@@ -1,0 +1,20 @@
+replicaCount: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 750m
+    memory: 768Mi
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
