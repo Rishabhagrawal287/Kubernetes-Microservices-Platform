@@ -1,5 +1,5 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: user-service
   labels:
@@ -46,3 +46,9 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 5
             failureThreshold: 12
+  strategy:
+    blueGreen:
+      activeService: user-service
+      previewService: user-service-preview
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 30
