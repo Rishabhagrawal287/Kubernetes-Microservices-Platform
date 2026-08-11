@@ -23,7 +23,7 @@ app.middleware("http")(metrics_middleware)
 @app.get("/health")
 def health():
     """Liveness: is the process up at all."""
-    return {"status": "ok", "service": "order-service"}
+    return {"status": "ok", "service": "order-service", "version": "v2"}
 
 
 @app.get("/ready")
