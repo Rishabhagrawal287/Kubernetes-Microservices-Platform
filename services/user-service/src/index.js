@@ -24,7 +24,7 @@ mongoose
 
 // Liveness: is the process up at all
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', service: 'user-service' });
+  res.status(200).json({ status: 'ok', service: 'user-service', version: 'v2' });
 });
 
 // Readiness: only ready once Mongo is actually connected
