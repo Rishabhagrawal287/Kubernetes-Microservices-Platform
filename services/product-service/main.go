@@ -22,7 +22,7 @@ func main() {
 
 	// Liveness: is the process up at all
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "product-service"})
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "product-service", "version": "v2"})
 	})
 
 	// Readiness: only ready once Redis actually responds
