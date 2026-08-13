@@ -11,7 +11,7 @@ FROM alpine:3.20
 WORKDIR /app
 RUN apk add --no-cache ca-certificates wget
 COPY --from=builder /app/product-service .
-EXPOSE 8080
+EXPOSE 9091
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:8080/health || exit 1
 CMD ["./product-service"]
