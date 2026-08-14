@@ -1,0 +1,6 @@
+apiVersion: v2
+name: log-analyzer
+description: Helm chart for log-analyzer (Python + FastAPI, queries Loki, analyzes via Ollama)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
