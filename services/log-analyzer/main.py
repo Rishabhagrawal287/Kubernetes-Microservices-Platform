@@ -27,7 +27,7 @@ def ready():
 
 def fetch_recent_logs(namespace: str = "microservices", limit: int = 20):
     params = {
-        "query": f'{{namespace="{namespace}"}} |~ "(?i)error|exception|fail|timeout| [45]\\d\\d "',
+        "query": f'{{namespace="{namespace}"}} |~ "(?i)error|exception|fail|timeout| [45][0-9][0-9] "',
         "limit": limit,
     }
     resp = requests.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params, timeout=10)
