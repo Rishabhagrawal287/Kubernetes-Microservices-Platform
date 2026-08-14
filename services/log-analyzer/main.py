@@ -27,7 +27,7 @@ def ready():
 
 def fetch_recent_logs(namespace: str = "microservices", limit: int = 20):
     params = {
-        "query": f'{{namespace="{namespace}"}} |~ "(?i)error|exception|fail|timeout| [45][0-9][0-9] "',
+        "query": f'{{namespace="{namespace}"}} |~ "(?i)error|exception| failed| failure|connection timeout| [45][0-9][0-9] "',
         "limit": limit,
     }
     resp = requests.get(f"{LOKI_URL}/loki/api/v1/query_range", params=params, timeout=10)
@@ -41,7 +41,7 @@ def fetch_recent_logs(namespace: str = "microservices", limit: int = 20):
 
 
 def analyze_log(log_line: str):
-    prompt = PROMPT_TEMPLATE.format(log_line=log_line.strip())
+    prompt = PROMPT_TEMPLATE.format(log_line=log_line.strip()[:200])
     payload = {
         "model": MODEL,
         "prompt": prompt,
