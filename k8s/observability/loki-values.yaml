@@ -2,7 +2,7 @@
 # deployment modes, appropriate for a local learning setup rather than a
 # real production log volume. Filesystem storage avoids needing S3/GCS or
 # running MinIO just to have somewhere to put log chunks.
-deploymentMode: Monolithic
+deploymentMode: SingleBinary
 
 loki:
   auth_enabled: false
@@ -39,7 +39,7 @@ singleBinary:
 
 # Explicitly zero these out so the chart doesn't try to run both the
 # monolithic shape and the simple-scalable-mode components at once — a
-# known validation failure if left at their defaults alongside deploymentMode: Monolithic.
+# known validation failure if left at their defaults alongside deploymentMode: SingleBinary.
 read:
   replicas: 0
 write:
