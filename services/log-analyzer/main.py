@@ -48,7 +48,7 @@ def analyze_log(log_line: str):
         "stream": False,
         "options": {"temperature": 0.2},
     }
-    resp = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=30)
+    resp = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=60)
     resp.raise_for_status()
     return resp.json().get("response", "").strip()
 
