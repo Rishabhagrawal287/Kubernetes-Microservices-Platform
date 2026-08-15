@@ -9,10 +9,15 @@ LOKI_URL = os.getenv("LOKI_URL", "http://loki-gateway.monitoring.svc.cluster.loc
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama.ai.svc.cluster.local:11434")
 MODEL = os.getenv("OLLAMA_MODEL", "tinyllama")
 
-PROMPT_TEMPLATE = """Log: {log_line}
-Category: [Database/Network/Auth/Application/Other]
-Severity: [Low/Medium/High/Critical]
-One-line summary:"""
+PROMPT_TEMPLATE = """Example:
+Log: connection refused to database after 30s retries exhausted
+Category: Database
+Severity: High
+Summary: Database connection failed after retries were exhausted.
+
+Now analyze this log:
+Log: {log_line}
+Category:"""
 
 
 @app.get("/health")
