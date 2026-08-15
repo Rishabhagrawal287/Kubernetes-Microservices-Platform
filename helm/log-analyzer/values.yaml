@@ -14,3 +14,4 @@ resources:
     memory: 256Mi
 podDisruptionBudget:
   enabled: false
+ollamaModel: qwen2.5:1.5b
