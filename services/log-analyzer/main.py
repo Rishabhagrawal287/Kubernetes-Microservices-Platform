@@ -46,7 +46,7 @@ def analyze_log(log_line: str):
         "model": MODEL,
         "prompt": prompt,
         "stream": False,
-        "options": {"temperature": 0.2},
+        "options": {"temperature": 0.2, "num_predict": 60}, "keep_alive": "30m",
     }
     resp = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=60)
     resp.raise_for_status()

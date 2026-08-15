@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: log-analyzer
-  tag: v5
+  tag: v6
   pullPolicy: IfNotPresent
 service:
   port: 9092
