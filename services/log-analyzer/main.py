@@ -9,13 +9,16 @@ LOKI_URL = os.getenv("LOKI_URL", "http://loki-gateway.monitoring.svc.cluster.loc
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama.ai.svc.cluster.local:11434")
 MODEL = os.getenv("OLLAMA_MODEL", "tinyllama")
 
-PROMPT_TEMPLATE = """Example:
+PROMPT_TEMPLATE = """You are a log analysis assistant. Follow the example format exactly, but only output the analysis for the NEW log below. Do not repeat the example.
+
+--- EXAMPLE (for format reference only, do not repeat) ---
 Log: connection refused to database after 30s retries exhausted
 Category: Database
 Severity: High
 Summary: Database connection failed after retries were exhausted.
+--- END EXAMPLE ---
 
-Now analyze this log:
+--- NEW LOG TO ANALYZE ---
 Log: {log_line}
 Category:"""
 
@@ -51,7 +54,7 @@ def analyze_log(log_line: str):
         "model": MODEL,
         "prompt": prompt,
         "stream": False,
-        "options": {"temperature": 0.2, "num_predict": 60}, "keep_alive": "30m",
+        "options": {"temperature": 0.2, "num_predict": 80}, "keep_alive": "30m",
     }
     resp = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=60)
     resp.raise_for_status()
