@@ -1,0 +1,214 @@
+apiVersion: v1
+items:
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-dns-and-intra-namespace-egress","namespace":"microservices"},"spec":{"egress":[{"ports":[{"port":53,"protocol":"UDP"},{"port":53,"protocol":"TCP"}],"to":[{"namespaceSelector":{}}]},{"to":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"microservices"}}}]},{"to":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"monitoring"}}}]},{"to":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"ai"}}}]}],"podSelector":{},"policyTypes":["Egress"]}}
+    creationTimestamp: "2026-08-16T02:09:30Z"
+    generation: 1
+    name: allow-dns-and-intra-namespace-egress
+    namespace: microservices
+    resourceVersion: "12906"
+    uid: 576fecb9-22ab-483d-9243-392a44cdc18c
+  spec:
+    egress:
+    - ports:
+      - port: 53
+        protocol: UDP
+      - port: 53
+        protocol: TCP
+      to:
+      - namespaceSelector: {}
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: microservices
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: monitoring
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: ai
+    podSelector: {}
+    policyTypes:
+    - Egress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-mongo-from-user-service","namespace":"microservices"},"spec":{"ingress":[{"from":[{"podSelector":{"matchLabels":{"app":"user-service"}}}],"ports":[{"port":27017,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"mongo"}},"policyTypes":["Ingress"]}}
+    creationTimestamp: "2026-08-16T02:05:44Z"
+    generation: 1
+    name: allow-mongo-from-user-service
+    namespace: microservices
+    resourceVersion: "12437"
+    uid: 32372955-c6eb-4c66-8911-19ab91e423f8
+  spec:
+    ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+            app: user-service
+      ports:
+      - port: 27017
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        app: mongo
+    policyTypes:
+    - Ingress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-monitoring-namespace","namespace":"microservices"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"monitoring"}}}]}],"podSelector":{},"policyTypes":["Ingress"]}}
+    creationTimestamp: "2026-08-16T02:06:01Z"
+    generation: 1
+    name: allow-monitoring-namespace
+    namespace: microservices
+    resourceVersion: "12473"
+    uid: f32793c6-a692-4b66-9e0c-8da1c98f96aa
+  spec:
+    ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: monitoring
+    podSelector: {}
+    policyTypes:
+    - Ingress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-postgres-from-order-service","namespace":"microservices"},"spec":{"ingress":[{"from":[{"podSelector":{"matchLabels":{"app":"order-service"}}}],"ports":[{"port":5432,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"postgres"}},"policyTypes":["Ingress"]}}
+    creationTimestamp: "2026-08-16T02:05:44Z"
+    generation: 1
+    name: allow-postgres-from-order-service
+    namespace: microservices
+    resourceVersion: "12438"
+    uid: e4f0d592-d8d1-4e1b-9652-55160fa1a48c
+  spec:
+    ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+            app: order-service
+      ports:
+      - port: 5432
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        app: postgres
+    policyTypes:
+    - Ingress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-rabbitmq-from-services","namespace":"microservices"},"spec":{"ingress":[{"from":[{"podSelector":{"matchLabels":{"app":"order-service"}}},{"podSelector":{"matchLabels":{"app":"product-service"}}}],"ports":[{"port":5672,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"rabbitmq"}},"policyTypes":["Ingress"]}}
+    creationTimestamp: "2026-08-16T02:05:44Z"
+    generation: 1
+    name: allow-rabbitmq-from-services
+    namespace: microservices
+    resourceVersion: "12440"
+    uid: fc3d0b65-0f54-467e-870e-bab9c76fd40c
+  spec:
+    ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+            app: order-service
+      - podSelector:
+          matchLabels:
+            app: product-service
+      ports:
+      - port: 5672
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        app: rabbitmq
+    policyTypes:
+    - Ingress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-redis-from-product-service","namespace":"microservices"},"spec":{"ingress":[{"from":[{"podSelector":{"matchLabels":{"app":"product-service"}}}],"ports":[{"port":6379,"protocol":"TCP"}]}],"podSelector":{"matchLabels":{"app":"redis"}},"policyTypes":["Ingress"]}}
+    creationTimestamp: "2026-08-16T02:05:44Z"
+    generation: 1
+    name: allow-redis-from-product-service
+    namespace: microservices
+    resourceVersion: "12439"
+    uid: 8e86ae33-2f0d-4f77-9757-a49c1d21bc38
+  spec:
+    ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+            app: product-service
+      ports:
+      - port: 6379
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        app: redis
+    policyTypes:
+    - Ingress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"allow-same-namespace-to-apps","namespace":"microservices"},"spec":{"ingress":[{"from":[{"namespaceSelector":{"matchLabels":{"kubernetes.io/metadata.name":"microservices"}}}]}],"podSelector":{"matchExpressions":[{"key":"app","operator":"In","values":["user-service","order-service","product-service","log-analyzer"]}]},"policyTypes":["Ingress"]}}
+    creationTimestamp: "2026-08-16T02:05:55Z"
+    generation: 1
+    name: allow-same-namespace-to-apps
+    namespace: microservices
+    resourceVersion: "12460"
+    uid: d0ab05d7-f3ca-4104-9914-7cb28bab5605
+  spec:
+    ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: microservices
+    podSelector:
+      matchExpressions:
+      - key: app
+        operator: In
+        values:
+        - user-service
+        - order-service
+        - product-service
+        - log-analyzer
+    policyTypes:
+    - Ingress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"networking.k8s.io/v1","kind":"NetworkPolicy","metadata":{"annotations":{},"name":"default-deny-ingress","namespace":"microservices"},"spec":{"podSelector":{},"policyTypes":["Ingress"]}}
+    creationTimestamp: "2026-08-16T02:04:43Z"
+    generation: 1
+    name: default-deny-ingress
+    namespace: microservices
+    resourceVersion: "12306"
+    uid: 8ee75b45-ef03-4897-ba59-d3fe9d5cd8fb
+  spec:
+    podSelector: {}
+    policyTypes:
+    - Ingress
+kind: List
+metadata:
+  resourceVersion: ""
