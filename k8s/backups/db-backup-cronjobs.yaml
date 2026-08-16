@@ -1,0 +1,119 @@
+apiVersion: v1
+items:
+- apiVersion: batch/v1
+  kind: CronJob
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"batch/v1","kind":"CronJob","metadata":{"annotations":{},"name":"mongo-backup","namespace":"microservices"},"spec":{"jobTemplate":{"spec":{"template":{"spec":{"containers":[{"command":["/bin/sh","-c","TIMESTAMP=$(date +%Y%m%d-%H%M%S)\nmongodump --host=mongo --username=\"$MONGO_ROOT_USER\" --password=\"$MONGO_ROOT_PASSWORD\" --authenticationDatabase=admin --archive=/backups/mongo-$TIMESTAMP.archive --gzip\nfind /backups -name \"mongo-*.archive\" -mtime +7 -delete\n"],"envFrom":[{"secretRef":{"name":"platform-secrets"}}],"image":"mongo:7","name":"mongo-backup","volumeMounts":[{"mountPath":"/backups","name":"backups"}]}],"restartPolicy":"OnFailure","volumes":[{"name":"backups","persistentVolumeClaim":{"claimName":"db-backups"}}]}}}},"schedule":"0 2 * * *"}}
+    creationTimestamp: "2026-08-16T02:37:02Z"
+    generation: 2
+    name: mongo-backup
+    namespace: microservices
+    resourceVersion: "17114"
+    uid: 4c8bf1ee-c58b-417b-94b2-47f6ab10c3de
+  spec:
+    concurrencyPolicy: Allow
+    failedJobsHistoryLimit: 1
+    jobTemplate:
+      metadata: {}
+      spec:
+        template:
+          metadata:
+            labels:
+              backup-job: "true"
+          spec:
+            containers:
+            - command:
+              - /bin/sh
+              - -c
+              - |
+                TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                mongodump --host=mongo --username="$MONGO_ROOT_USER" --password="$MONGO_ROOT_PASSWORD" --authenticationDatabase=admin --archive=/backups/mongo-$TIMESTAMP.archive --gzip
+                find /backups -name "mongo-*.archive" -mtime +7 -delete
+              envFrom:
+              - secretRef:
+                  name: platform-secrets
+              image: mongo:7
+              imagePullPolicy: IfNotPresent
+              name: mongo-backup
+              resources: {}
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+              volumeMounts:
+              - mountPath: /backups
+                name: backups
+            dnsPolicy: ClusterFirst
+            restartPolicy: OnFailure
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 30
+            volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: db-backups
+    schedule: 0 2 * * *
+    successfulJobsHistoryLimit: 3
+    suspend: false
+  status:
+    lastSuccessfulTime: "2026-08-16T02:43:29Z"
+- apiVersion: batch/v1
+  kind: CronJob
+  metadata:
+    annotations:
+      kubectl.kubernetes.io/last-applied-configuration: |
+        {"apiVersion":"batch/v1","kind":"CronJob","metadata":{"annotations":{},"name":"postgres-backup","namespace":"microservices"},"spec":{"jobTemplate":{"spec":{"template":{"spec":{"containers":[{"command":["/bin/sh","-c","TIMESTAMP=$(date +%Y%m%d-%H%M%S)\nPGPASSWORD=\"$POSTGRES_PASSWORD\" pg_dump -h postgres -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -F c -f /backups/postgres-$TIMESTAMP.dump\nfind /backups -name \"postgres-*.dump\" -mtime +7 -delete\n"],"envFrom":[{"secretRef":{"name":"platform-secrets"}}],"image":"postgres:16-alpine","name":"postgres-backup","volumeMounts":[{"mountPath":"/backups","name":"backups"}]}],"restartPolicy":"OnFailure","volumes":[{"name":"backups","persistentVolumeClaim":{"claimName":"db-backups"}}]}}}},"schedule":"0 3 * * *"}}
+    creationTimestamp: "2026-08-16T02:37:09Z"
+    generation: 2
+    name: postgres-backup
+    namespace: microservices
+    resourceVersion: "17130"
+    uid: 394b7cd6-9ff6-4d38-b55d-b5dc5fd9a81f
+  spec:
+    concurrencyPolicy: Allow
+    failedJobsHistoryLimit: 1
+    jobTemplate:
+      metadata: {}
+      spec:
+        template:
+          metadata:
+            labels:
+              backup-job: "true"
+          spec:
+            containers:
+            - command:
+              - /bin/sh
+              - -c
+              - |
+                TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -F c -f /backups/postgres-$TIMESTAMP.dump
+                find /backups -name "postgres-*.dump" -mtime +7 -delete
+              envFrom:
+              - secretRef:
+                  name: platform-secrets
+              image: postgres:16-alpine
+              imagePullPolicy: IfNotPresent
+              name: postgres-backup
+              resources: {}
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: File
+              volumeMounts:
+              - mountPath: /backups
+                name: backups
+            dnsPolicy: ClusterFirst
+            restartPolicy: OnFailure
+            schedulerName: default-scheduler
+            securityContext: {}
+            terminationGracePeriodSeconds: 30
+            volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: db-backups
+    schedule: 0 3 * * *
+    successfulJobsHistoryLimit: 3
+    suspend: false
+  status:
+    lastSuccessfulTime: "2026-08-16T02:43:34Z"
+kind: List
+metadata:
+  resourceVersion: ""
