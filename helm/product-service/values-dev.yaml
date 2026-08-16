@@ -1,3 +1,7 @@
+image:
+  repository: product-service
+  tag: local
+
 replicaCount: 1
 
 autoscaling:

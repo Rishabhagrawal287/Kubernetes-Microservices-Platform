@@ -1,8 +1,8 @@
 replicaCount: 2
 
 image:
-  repository: user-service
-  tag: v2
+  repository: ghcr.io/rishabhagrawal287/microservices-platform-user-service
+  tag: latest
   pullPolicy: IfNotPresent
 
 service:

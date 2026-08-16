@@ -1,3 +1,7 @@
+image:
+  repository: user-service
+  tag: local
+
 # Dev: fixed replica count, no autoscaling noise while you're iterating,
 # smaller resource footprint since this is what actually runs on your 8GB Kind cluster.
 replicaCount: 1

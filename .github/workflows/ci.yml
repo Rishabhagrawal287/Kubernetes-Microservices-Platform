@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -27,6 +27,7 @@ jobs:
           docker build -t user-service:local ./services/user-service
           docker build -t order-service:local ./services/order-service
           docker build -t product-service:local ./services/product-service
+          docker build -t log-analyzer:local ./services/log-analyzer
 
       # ---------- Security scan (Trivy) ----------
       # Report-only for now (exit-code 0) so the pipeline doesn't hard-fail on
@@ -57,6 +58,14 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: '0'
 
+      - name: Scan log-analyzer image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: log-analyzer:local
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
       # ---------- Deploy into a throwaway Kind cluster and prove it actually works ----------
       - name: Create Kind cluster
         uses: helm/kind-action@v1
@@ -68,6 +77,7 @@ jobs:
           kind load docker-image user-service:local --name ci-cluster
           kind load docker-image order-service:local --name ci-cluster
           kind load docker-image product-service:local --name ci-cluster
+          kind load docker-image log-analyzer:local --name ci-cluster
 
       - name: Deploy shared infrastructure
         run: |
@@ -120,10 +130,31 @@ jobs:
       - name: Tag and push images to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          for svc in user-service order-service product-service; do
+          for svc in user-service order-service product-service log-analyzer; do
             IMAGE="${REGISTRY}/${OWNER_LC}/microservices-platform-${svc}"
             docker tag ${svc}:local "${IMAGE}:latest"
             docker tag ${svc}:local "${IMAGE}:${{ github.sha }}"
             docker push "${IMAGE}:latest"
             docker push "${IMAGE}:${{ github.sha }}"
           done
+
+      # ---------- Auto-bump Helm values.yaml with the new SHA tag (completes GitOps loop) ----------
+      - name: Update Helm values with new image tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          for svc in user-service order-service product-service log-analyzer; do
+            sed -i "s|tag: .*|tag: \"${{ github.sha }}\"|" ./helm/${svc}/values.yaml
+          done
+
+      - name: Commit and push updated image tags
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/*/values.yaml
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: bump image tags to ${{ github.sha }} [skip ci]"
+            git push
+          else
+            echo "No changes to commit"
+          fi

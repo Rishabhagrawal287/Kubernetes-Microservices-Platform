@@ -1,8 +1,8 @@
 replicaCount: 2
 
 image:
-  repository: product-service
-  tag: v3
+  repository: ghcr.io/rishabhagrawal287/microservices-platform-product-service
+  tag: latest
   pullPolicy: IfNotPresent
 
 service:
