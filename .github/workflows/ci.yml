@@ -78,6 +78,12 @@ jobs:
           kind load docker-image order-service:local --name ci-cluster
           kind load docker-image product-service:local --name ci-cluster
           kind load docker-image log-analyzer:local --name ci-cluster
+      - name: Install required CRDs (Argo Rollouts + Prometheus Operator)
+        run: |
+          kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-rollouts/master/manifests/crds/rollout-crd.yaml
+          kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+          kubectl wait --for condition=established --timeout=60s crd/rollouts.argoproj.io
+          kubectl wait --for condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com
 
       - name: Deploy shared infrastructure
         run: |
