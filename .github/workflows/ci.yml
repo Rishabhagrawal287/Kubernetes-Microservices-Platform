@@ -84,6 +84,11 @@ jobs:
           kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
           kubectl wait --for condition=established --timeout=60s crd/rollouts.argoproj.io
           kubectl wait --for condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com
+      - name: Install Argo Rollouts controller
+        run: |
+          kubectl create namespace argo-rollouts
+          kubectl apply -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+          kubectl wait --for=condition=available deployment/argo-rollouts -n argo-rollouts --timeout=120s
 
       - name: Deploy shared infrastructure
         run: |
@@ -109,9 +114,9 @@ jobs:
 
       - name: Wait for services to be ready
         run: |
-          kubectl wait --for=condition=available deployment/user-service -n microservices --timeout=120s
-          kubectl wait --for=condition=available deployment/order-service -n microservices --timeout=120s
-          kubectl wait --for=condition=available deployment/product-service -n microservices --timeout=120s
+          kubectl wait --for=condition=ready pod -l app=user-service -n microservices --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=order-service -n microservices --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=product-service -n microservices --timeout=180s
 
       - name: Run integration test (JWT auth -> order -> RabbitMQ -> stock decrement)
         run: |
