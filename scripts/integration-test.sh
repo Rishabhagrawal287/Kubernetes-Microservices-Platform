@@ -16,7 +16,7 @@ kubectl port-forward -n "$NAMESPACE" svc/user-service 3001:3000 >/tmp/pf-user.lo
 PF_USER=$!
 kubectl port-forward -n "$NAMESPACE" svc/order-service 3002:8000 >/tmp/pf-order.log 2>&1 &
 PF_ORDER=$!
-kubectl port-forward -n "$NAMESPACE" svc/product-service 3003:8080 >/tmp/pf-product.log 2>&1 &
+kubectl port-forward -n "$NAMESPACE" svc/product-service 3003:9091 >/tmp/pf-product.log 2>&1 &
 PF_PRODUCT=$!
 
 cleanup() {
