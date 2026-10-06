@@ -12,15 +12,33 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/users_db';
 
 let mongoConnected = false;
 
-mongoose
-  .connect(MONGO_URI)
-  .then(() => {
-    mongoConnected = true;
-    console.log('user-service connected to MongoDB');
-  })
-  .catch((err) => {
-    console.error('user-service failed to connect to MongoDB:', err.message);
-  });
+const MONGO_RETRY_DELAY_MS = 5000;
+
+function connectToMongo() {
+  mongoose
+     .connect(MONGO_URI)
+     .then(() => {
+       mongoConnected = true;
+       console.log('user-service connected to MongoDB');
+     })
+     .catch((err) => {
+       mongoConnected = false;
+       console.log(`user-service failed to connect to MongoDB: ${err.message}`);
+       setTimeout(connectToMongo, MONGO_RETRY_DELAY_MS);
+     });
+}
+
+mongoose.connection.on('disconnected', () => {
+  mongoConnected = false;
+  console.error('user-service lost MongoDB connection, retrying');
+  setTimeout(connectToMongo, MONGO_RETRY_DELAY_MS);
+});
+
+mongoose.connection.on('connected', () => {
+  mongoConnected = true;
+});
+
+connectToMongo();
 
 // Liveness: is the process up at all
 app.get('/health', (req, res) => {
