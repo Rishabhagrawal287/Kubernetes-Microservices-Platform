@@ -1,5 +1,5 @@
 # Kubernetes Microservices Platform — Handoff Summary
-_Last updated: Oct 2026, after closing the CI/GitOps loop for the first time_
+_Last updated: Oct 2026, after CI #32 (user-service MongoDB retry logic + log-analyzer CI coverage)_
 
 ## Project Overview
 
@@ -34,7 +34,7 @@ CI had been broken since run #2 (silently, since nobody noticed — all deployme
 ### ci.yml current structure (as of this update)
 Steps in order: Checkout → Build images → Trivy scan (report-only) → Create Kind cluster → Load images → **Install CRDs (Rollouts + ServiceMonitor)** → **Install Argo Rollouts controller** → Deploy shared infra → Wait for infra → Install services via Helm (dev values) → Wait for services (pod-label based) → Run integration test → (on push to main only:) push to GHCR → auto-bump Helm values.yaml tags → commit+push back with `[skip ci]`.
 
-**Known gap, not yet fixed:** `log-analyzer` is built/scanned/pushed by CI but never actually installed via Helm or tested in the ephemeral cluster — only `user-service`, `order-service`, `product-service` are. Low priority since log-analyzer works fine on the live cluster; worth fixing if extending CI further.
+**Resolved (CI #32):** `log-analyzer` is now installed via Helm in CI using `helm/log-analyzer/values-dev.yaml` (which overrides the image to the locally built `log-analyzer:local`) and readiness-checked alongside the other three services. Its `/ready` endpoint is unconditional, so CI does not need Loki or Ollama. Caveat: CI does not exercise log-analyzer's `/analyze` path, only that it starts and becomes ready.
 
 ## All 11 Original Roadmap Phases — STATUS: ALL COMPLETE ✅
 (unchanged from original — see Environment Setup through Phase 7, all done and load-tested)
@@ -61,7 +61,7 @@ Steps in order: Checkout → Build images → Trivy scan (report-only) → Creat
 **New this session:**
 - **CI's ephemeral Kind cluster needs its OWN copies of any CRDs/controllers your Helm charts depend on** (Argo Rollouts, Prometheus Operator, etc.) — these aren't automatically available just because they're installed on your real cluster. If you add a new CRD-dependent resource type to any chart in the future, CI will break the same way until you add the matching install step.
 - **CI readiness checks must match the actual resource kind.** If a service is converted from `Deployment` to `Rollout` (or any other kind), update `kubectl wait` steps accordingly — `kubectl wait --for=condition=available deployment/X` silently doesn't exist for a `Rollout`.
-- **user-service has a DNS-on-startup fragility**: if MongoDB can't be resolved at container start (e.g. during a network blip), the Node app logs `getaddrinfo EAI_AGAIN mongo` and never retries — pod stays "Running" but `0/1 Ready` forever, even after networking recovers. Happened twice this session, both after external network disruptions (not app bugs we introduced). **Workaround:** `kubectl delete pod -n microservices -l app=user-service` once networking is confirmed healthy — safe, pods recreate cleanly. **Real fix (not yet done):** add retry/backoff logic to user-service's MongoDB connection code.
+- **user-service DNS-on-startup fragility (fixed in code, CI #31):** previously, if MongoDB could not be resolved at container start, the Node app logged `getaddrinfo EAI_AGAIN mongo` and never retried, leaving the pod Running but 0/1 Ready forever. `services/user-service/src/index.js` now retries the connection every 5s (and again on a `disconnected` event). Verified in local Docker tests and a green CI run; NOT yet observed recovering from a real DNS blip on the live cluster. The live cluster only gets the fix once the new image is synced by Argo CD AND the Blue/Green rollout is promoted. The old workaround (`kubectl delete pod -n microservices -l app=user-service`) remains a safe fallback. One unexplained oddity from testing: a single local run logged connected to MongoDB against a nonexistent host once, while /ready correctly stayed not-ready in every test; not reproduced.
 - **WSL2/Docker Desktop networking can fail at the OS level**, independent of Docker or Kubernetes — symptoms: `ping 8.8.8.8` fails with "Destination Host Unreachable," `kubectl` commands hang with TLS handshake timeouts, Docker Desktop shows "Engine stopped unexpectedly" with a WSL command timeout error. **Fix: full Windows restart** (not just `wsl --shutdown`, which can leave things half-wedged). After restart: verify `ping 8.8.8.8` works before touching Docker/k8s, then bring the cluster back up per the health-check commands below.
 - `kubectl get rollout` (plain kubectl) doesn't show a Status/pause column — use `kubectl argo rollouts get rollout <name> -n microservices` (the plugin) for full Blue/Green/Canary state including pause status.
 
@@ -82,10 +82,14 @@ If `kubectl` commands hang or time out: check `ping -c 2 8.8.8.8` first — if t
 
 ## Remaining Open Items (as of this update)
 
-1. **[Optional, in progress]** Add retry/backoff logic to user-service's MongoDB connection to stop the DNS-on-startup fragility.
-2. **[Optional, low priority]** Add `log-analyzer` to CI's `Install services via Helm` step so it's actually deploy-tested, not just built/scanned/pushed.
-3. **[Optional, deprioritized, unchanged from original]** Traefik + Ingress — never set up, no ingress controller exists.
-4. **[Optional, deprioritized, unchanged from original]** Distributed tracing (Tempo/Jaeger) — not started.
+**Completed since the previous version of this doc:**
+- user-service MongoDB retry/backoff (CI #31)
+- log-analyzer added to CI Helm install + readiness check (CI #32)
+
+**Still open:**
+1. **[Check]** An unexplained `master` branch appeared on the remote during a `git fetch` (not created intentionally). Inspect with `git branch -r` and `git log --oneline origin/master -5` before deleting or ignoring it.
+2. **[Optional, deprioritized]** Traefik + Ingress: never set up, no ingress controller exists. The Kind node already maps host ports 80/443, so it is partly ready.
+3. **[Optional, deprioritized]** Distributed tracing (Tempo/Jaeger): not started; needs SDK instrumentation in all 3 language runtimes plus extra RAM.
 
 ## User Preferences / Working Style Notes
 
