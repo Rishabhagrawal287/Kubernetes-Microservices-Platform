@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/rishabhagrawal287/microservices-platform-user-service
-  tag: "ef97afe447df232570dd8302494769cc68639532"
+  tag: "1773d50ce71c67d613c998ea821ad10002f0a5e0"
   pullPolicy: IfNotPresent
 
 service:
