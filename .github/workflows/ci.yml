@@ -111,12 +111,14 @@ jobs:
           helm install user-service ./helm/user-service -n microservices -f ./helm/user-service/values-dev.yaml
           helm install order-service ./helm/order-service -n microservices -f ./helm/order-service/values-dev.yaml
           helm install product-service ./helm/product-service -n microservices -f ./helm/product-service/values-dev.yaml
+          helm install log-analyzer ./helm/log-analyzer -n microservices -f ./helm/log-analyzer/values-dev.yaml
 
       - name: Wait for services to be ready
         run: |
           kubectl wait --for=condition=ready pod -l app=user-service -n microservices --timeout=180s
           kubectl wait --for=condition=ready pod -l app=order-service -n microservices --timeout=180s
           kubectl wait --for=condition=ready pod -l app=product-service -n microservices --timeout=180s
+          kubectl wait --for=condition=ready pod -l app=log-analyzer -n microservices --timeout=180s
 
       - name: Run integration test (JWT auth -> order -> RabbitMQ -> stock decrement)
         run: |
