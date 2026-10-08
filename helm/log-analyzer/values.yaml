@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: ghcr.io/rishabhagrawal287/microservices-platform-log-analyzer
-  tag: "28953b19845acc05fbedfc49c31fff266ab5e38b"
+  tag: "ef97afe447df232570dd8302494769cc68639532"
   pullPolicy: IfNotPresent
 service:
   port: 9092
