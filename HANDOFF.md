@@ -1,5 +1,5 @@
 # Kubernetes Microservices Platform — Handoff Summary
-_Last updated: Oct 2026, after CI #32 (user-service MongoDB retry logic + log-analyzer CI coverage)_
+_Last updated: Oct 2026, after the user-service duplicate-retry fix and the markdown paths-ignore change_
 
 ## Project Overview
 
@@ -61,7 +61,8 @@ Steps in order: Checkout → Build images → Trivy scan (report-only) → Creat
 **New this session:**
 - **CI's ephemeral Kind cluster needs its OWN copies of any CRDs/controllers your Helm charts depend on** (Argo Rollouts, Prometheus Operator, etc.) — these aren't automatically available just because they're installed on your real cluster. If you add a new CRD-dependent resource type to any chart in the future, CI will break the same way until you add the matching install step.
 - **CI readiness checks must match the actual resource kind.** If a service is converted from `Deployment` to `Rollout` (or any other kind), update `kubectl wait` steps accordingly — `kubectl wait --for=condition=available deployment/X` silently doesn't exist for a `Rollout`.
-- **user-service DNS-on-startup fragility (fixed in code, CI #31):** previously, if MongoDB could not be resolved at container start, the Node app logged `getaddrinfo EAI_AGAIN mongo` and never retried, leaving the pod Running but 0/1 Ready forever. `services/user-service/src/index.js` now retries the connection every 5s (and again on a `disconnected` event). Verified in local Docker tests and a green CI run; NOT yet observed recovering from a real DNS blip on the live cluster. The live cluster only gets the fix once the new image is synced by Argo CD AND the Blue/Green rollout is promoted. The old workaround (`kubectl delete pod -n microservices -l app=user-service`) remains a safe fallback. One unexplained oddity from testing: a single local run logged connected to MongoDB against a nonexistent host once, while /ready correctly stayed not-ready in every test; not reproduced.
+- **user-service MongoDB startup retry (fixed in code):** previously, if MongoDB could not be resolved at container start, the Node app logged `getaddrinfo EAI_AGAIN mongo` and never retried, leaving the pod Running but 0/1 Ready forever. `services/user-service/src/index.js` now retries every 5s. The first version (CI #31/#32 builds, promoted to stable) was seen recovering from a real `EAI_AGAIN` on the live preview pods. It also had a bug: a failed connect fired both the `.catch()` handler and the `disconnected` event, scheduling two overlapping retries, and the app logged a false `connected to MongoDB` after every failed attempt against an unreachable host (reproduced locally with a nonexistent host; `/ready` stayed correct because it also checks `mongoose.connection.readyState === 1`; exact mechanism not verified). Fixed with a single-pending-timer guard, `scheduleRetry()`, and verified side by side in Docker (old image: false `connected` line every cycle; new image: none). Fallback if a pod is ever wedged: `kubectl delete pod -n microservices -l app=user-service`.
+- **Every push to `main` triggers a full CI run, a bot tag-bump commit, and (for user-service) a new Blue/Green preview that waits for a manual promote.** This includes docs-only pushes (found the hard way with HANDOFF.md). `ci.yml` now has `paths-ignore: ['**.md']` so markdown-only pushes skip CI (not yet observed on a real docs-only push). After a code-changing push: wait for CI and the bot commit, run `git pull --rebase origin main`, then `kubectl argo rollouts get rollout user-service -n microservices`, and when a healthy preview shows, `kubectl argo rollouts promote user-service -n microservices` (rollback: `kubectl argo rollouts undo user-service -n microservices`). Check which revision is current before promoting, since a newer CI run can replace the preview.
 - **WSL2/Docker Desktop networking can fail at the OS level**, independent of Docker or Kubernetes — symptoms: `ping 8.8.8.8` fails with "Destination Host Unreachable," `kubectl` commands hang with TLS handshake timeouts, Docker Desktop shows "Engine stopped unexpectedly" with a WSL command timeout error. **Fix: full Windows restart** (not just `wsl --shutdown`, which can leave things half-wedged). After restart: verify `ping 8.8.8.8` works before touching Docker/k8s, then bring the cluster back up per the health-check commands below.
 - `kubectl get rollout` (plain kubectl) doesn't show a Status/pause column — use `kubectl argo rollouts get rollout <name> -n microservices` (the plugin) for full Blue/Green/Canary state including pause status.
 
@@ -82,14 +83,14 @@ If `kubectl` commands hang or time out: check `ping -c 2 8.8.8.8` first — if t
 
 ## Remaining Open Items (as of this update)
 
-**Completed since the previous version of this doc:**
-- user-service MongoDB retry/backoff (CI #31)
-- log-analyzer added to CI Helm install + readiness check (CI #32)
+**Completed since the original doc:**
+- user-service MongoDB retry/backoff, including the duplicate-retry fix
+- log-analyzer added to CI Helm install and readiness check (CI #32)
+- Stray `master` branch on the remote (single July 16 commit) deleted after confirming no Argo CD app tracked it; its files were not fully diffed against main. Recoverable from a local clone while the commit survives: `git push origin bb5d00a:refs/heads/master`
 
-**Still open:**
-1. **[Check]** An unexplained `master` branch appeared on the remote during a `git fetch` (not created intentionally). Inspect with `git branch -r` and `git log --oneline origin/master -5` before deleting or ignoring it.
-2. **[Optional, deprioritized]** Traefik + Ingress: never set up, no ingress controller exists. The Kind node already maps host ports 80/443, so it is partly ready.
-3. **[Optional, deprioritized]** Distributed tracing (Tempo/Jaeger): not started; needs SDK instrumentation in all 3 language runtimes plus extra RAM.
+**Still open (all optional):**
+1. Traefik + Ingress: never set up, no ingress controller exists. The Kind node already maps host ports 80/443, so it is partly ready.
+2. Distributed tracing (Tempo/Jaeger): not started; needs SDK instrumentation in all 3 language runtimes plus extra RAM.
 
 ## User Preferences / Working Style Notes
 

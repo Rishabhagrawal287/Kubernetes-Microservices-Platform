@@ -14,6 +14,19 @@ let mongoConnected = false;
 
 const MONGO_RETRY_DELAY_MS = 5000;
 
+let retryTimer = null;
+
+// Only one retry may be pending at a time. A failed connect fires both the
+// .catch() handler and the 'disconnected' event; without this guard each
+// failure scheduled two overlapping retries.
+function scheduleRetry() {
+  if (retryTimer) return;
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    connectToMongo();
+  }, MONGO_RETRY_DELAY_MS);
+}
+
 function connectToMongo() {
   mongoose
      .connect(MONGO_URI)
@@ -24,14 +37,14 @@ function connectToMongo() {
      .catch((err) => {
        mongoConnected = false;
        console.log(`user-service failed to connect to MongoDB: ${err.message}`);
-       setTimeout(connectToMongo, MONGO_RETRY_DELAY_MS);
+       scheduleRetry();
      });
 }
 
 mongoose.connection.on('disconnected', () => {
   mongoConnected = false;
   console.error('user-service lost MongoDB connection, retrying');
-  setTimeout(connectToMongo, MONGO_RETRY_DELAY_MS);
+  scheduleRetry();
 });
 
 mongoose.connection.on('connected', () => {
