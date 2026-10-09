@@ -100,3 +100,31 @@ If `kubectl` commands hang or time out: check `ping -c 2 8.8.8.8` first — if t
 - When presenting options/choices, wants a clear explanation of what each option IS, how it's used, and why one might be preferred — not just a bare list
 - Working in WSL2 Ubuntu terminal; occasional terminal display glitches (garbled heredoc paste-back, swallowed `kubectl run --rm -it` output) are environment quirks, not real errors — worth re-verifying before treating as a bug
 - Tends to step away from this project for extended periods (days to weeks) — keep this doc current after any significant session
+
+## Rebuilding From Scratch (cluster lost, deleted, or new machine)
+
+_Written from the repo contents (Makefile, k8s/, infra/, ci.yml) and what we learned debugging. A full rebuild has NOT been done from this doc: treat it as a map, not a tested procedure. **[repo]** = taken from a file in this repo. **[inferred]** = reasoned, not run. **[GAP]** = cannot be done from the repo alone yet._
+
+**What is lost with the cluster:** contents of mongo, postgres and redis, and the `db-backups` PVC (the backup CronJobs write inside the cluster). GitHub holds code and config only.
+
+**Traps in the existing Makefile (written before Phases 5-7):**
+- Do NOT use `make kind-up`. It uses `infra/kind-config.yaml`, the old 3-node config that hit the CNI bug. Use `infra/kind-config-singlenode.yaml`.
+- `build-images`, `kind-load` and `helm-install` cover only 3 services with local images (`values-dev.yaml`). log-analyzer is missing, and the live cluster now runs GHCR images deployed by Argo CD, not Helm by hand.
+- The Makefile stops at logging (Phase 4b). Argo CD, Argo Rollouts, Ollama, network policies and backups have no Makefile targets.
+
+**Order:**
+1. Prerequisites: Docker, kind, kubectl, helm, and the `kubectl-argo-rollouts` plugin. [inferred]
+2. Cluster: `kind create cluster --config infra/kind-config-singlenode.yaml` [repo]. Check that the cluster name inside the file is `microservices-platform` and that it maps host ports 80/443 (the running node did). [inferred]
+3. Namespaces and shared infra: `make k8s-infra` (namespace, secrets, mongo, postgres, redis, rabbitmq). [repo]
+4. Argo Rollouts, same commands CI uses [repo: ci.yml]:
+   - `kubectl create namespace argo-rollouts`
+   - `kubectl apply --server-side -n argo-rollouts -f https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml`
+5. Monitoring BEFORE the app charts: `make observability-install`, then `make logging-install`. [repo: Makefile] Reason: the charts render `ServiceMonitor` objects, and that CRD most likely comes from kube-prometheus-stack. Without it the charts fail the way CI did. [inferred from the CI failure]
+6. Argo CD: `kubectl create namespace argocd`, then `kubectl apply --server-side --force-conflicts -n argocd -f <install.yaml>` (plain `apply` hits the annotation-too-large error). **[GAP]** The install manifest URL and pinned version are not recorded in the repo.
+7. Argo CD Applications: five apps (user-service, order-service, product-service, log-analyzer, infra), all tracking `main`. **[GAP]** Their manifests are not in the repo, and the `infra` app's source path is not recorded.
+8. Ollama in namespace `ai`, model `qwen2.5:1.5b`, CPU limit 2 cores. **[GAP]** No manifests in the repo. After it starts, the model probably has to be pulled again. [inferred]
+9. NetworkPolicies, only after the services are healthy: `kubectl apply -f k8s/network-policies/microservices-policies.yaml` [repo]. A bad egress policy silently blocks all outbound traffic (see Gotchas above).
+10. Backups: `kubectl apply -f k8s/backups/db-backups-pvc.yaml`, then `kubectl apply -f k8s/backups/db-backup-cronjobs.yaml` [repo]. Check that the CronJob pod templates carry the `backup-job: "true"` label (see Gotchas above). Whether the committed YAML has it is unverified.
+11. Verify with the Quick Cluster Health Check commands above.
+
+**Image pulls:** the Helm values point at `ghcr.io/rishabhagrawal287/...` tagged with a commit SHA. The live cluster pulled new tags without any pull secret that we know of, so the packages are probably public. If pods show `ImagePullBackOff` with 401/403, check the package visibility on GitHub. The tagged images must also still exist in GHCR. [inferred]
